@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Sentiment box</title>
+    <link rel="stylesheet" href="style.css" media="screen" charset="utf-8">
+  </head>
+  <body>
+
+    <main id="container">
+      <form id="message-form">
+        <input type="submit" id="button" value="Comment" />
+        <textarea id="message" name="message" rows="8" cols="40" placeholder="Your message"></textarea>
+      </form>
+    </main>
+
+    <footer>
+      <p>Design by <a href="http://codepen.io/RicardoTormo/pen/qroEK">RicardoTormo</a></p>
+    </footer>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.0.0-alpha1/jquery.min.js" charset="utf-8"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bacon.js/0.7.83/Bacon.min.js" charset="utf-8"></script>
+    <script>
+      (function () {
+        var url = 'http://localhost:3000';
+
+        var sentiments = $('#message')
+          .asEventStream('keydown')
+          .debounce(300)
+          .map('.target.value')
+          .skipDuplicates()
+          .flatMapLatest(fetch)
+          .map('.Score');
+
+        var isNegative = sentiments
+          .map(s => s < 0.5)
+          .toProperty(false);
+
+        isNegative.assign($('#message-form'), 'toggleClass', 'negative');
+
+        // Rounded set
+        sentiments
+          .map(n => n.toFixed(1))
+          .toProperty(1.0)
+          .assign($('#message-form'), 'attr', 'data-sentiment');
+
+
+        function fetch (message) {
+          return Bacon.fromPromise($.post({
+            url: url,
+            data: JSON.stringify({ message: message }),
+            dataType: 'json'
+          }));
+        }
+
+        var textarea = document.querySelector('#message');
+
+        textarea.addEventListener('click', function(){
+          this.style.height = 100 + 'px';
+        }, false);
+
+        textarea.addEventListener('blur', function(){
+          if (textarea.value !== '') return;
+          textarea.style.height = '';
+        }, false);
+      }());
+    </script>
+  </body>
+</html>

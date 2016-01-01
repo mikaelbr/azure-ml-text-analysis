@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Sentiment box</title>
+    <link rel="stylesheet" href="style.css" media="screen" charset="utf-8">
+  </head>
+  <body>
+
+    <main id="container">
+      <form id="message-form">
+        <div>
+          <input type="submit" id="button" value="Comment" />
+          <textarea id="message" name="message" rows="8" cols="40" placeholder="Your message"></textarea>
+        </div>
+        <p id="message-box">
+          <input type="checkbox" name="language" id="language" value="" />
+          <label for="language"></label>
+        </p>
+      </form>
+    </main>
+
+    <footer>
+      <p>Design by <a href="http://codepen.io/RicardoTormo/pen/qroEK">RicardoTormo</a></p>
+    </footer>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.0.0-alpha1/jquery.min.js" charset="utf-8"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bacon.js/0.7.83/Bacon.min.js" charset="utf-8"></script>
+    <script>
+      (function () {
+        var url = 'http://localhost:3000';
+
+        var message = $('#message')
+          .asEventStream('keydown')
+          .debounce(300)
+          .map('.target.value')
+          .skipDuplicates();
+
+        var sentiments = message
+          .flatMapLatest(fetch())
+          .map('.Score');
+
+        var isNegative = sentiments
+          .map(s => s < 0.5)
+          .toProperty(false);
+
+        isNegative.assign($('#message-form'), 'toggleClass', 'negative');
+
+        // Rounded set
+        sentiments
+          .map(n => n.toFixed(1))
+          .toProperty(1.0)
+          .assign($('#message-form'), 'attr', 'data-sentiment');
+
+        var language = message
+          .flatMapLatest(fetch('language'))
+          .map('.DetectedLanguages')
+          .map(i => i[0])
+          .map('.Iso6391Name')
+          .skipDuplicates()
+          .toProperty(false)
+
+        language.map(Boolean).assign($('#message-box'), 'toggle');
+
+        language
+          .filter(Boolean)
+          .map(lang =>
+            lang == 'en' ?
+              'Looks like you like writing in English, do you prefer an answer in it as well?' :
+              'Ser ut som du skriver norsk. Foretrekker du svar på norsk også?')
+          .assign($('#message-box label'), 'text');
+
+        language
+          .filter(Boolean)
+          .map(lang =>
+            lang == 'en' ?
+              'Comment' :
+              'Lagre')
+          .assign($('input[type="submit"]'), 'val');
+
+        function fetch (type) {
+          return function (message) {
+            return Bacon.fromPromise($.post({
+              url: url,
+              data: JSON.stringify({
+                message: message,
+                type: type || 'sentiment'
+              }),
+              dataType: 'json'
+            }));
+          };
+        }
+
+        var textarea = document.querySelector('#message');
+
+        textarea.addEventListener('click', function(){
+          this.style.height = 100 + 'px';
+        }, false);
+
+        textarea.addEventListener('blur', function(){
+          if (textarea.value !== '') return;
+          textarea.style.height = '';
+        }, false);
+      }());
+    </script>
+  </body>
+</html>
