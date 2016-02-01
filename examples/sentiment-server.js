@@ -44,15 +44,14 @@ var server = http.createServer(function (req, res) {
 });
 
 function handleResponse (data, res) {
-  const cached = cache.get(data.message);
+  const cached = cache.get(data.message + ':' + data.type);
   if (cached) {
     console.log('from cache');
     res.writeHead(200, headers);
     res.end(JSON.stringify(cached));
     return;
   }
-  var type = data.type === 'language' ? 'language' : 'sentiment';
-  ai[type](data.message, function (err, _, body) {
+  ai[data.type](data.message, function (err, _, body) {
     if (err) {
       console.error(err);
       res.writeHead(500, headers);
